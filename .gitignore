@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.data/
+.env
+.env.*
+!.env.example
+!.env.production.example
+!.env.staging.example
+.vercel/
+*.log
+playwright-report/
+test-results/
+coverage/
+.DS_Store

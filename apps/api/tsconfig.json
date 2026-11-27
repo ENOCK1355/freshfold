@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.base.json","compilerOptions":{"types":["node"],"experimentalDecorators":true,"emitDecoratorMetadata":true,"outDir":"../../dist/api"},"include":["src/**/*.ts","../../api/**/*.ts","../../packages/shared/src/**/*.ts","../../scripts/**/*.ts"]}

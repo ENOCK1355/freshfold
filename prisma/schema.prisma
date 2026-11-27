@@ -1,0 +1,563 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "client"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id String @id @default(uuid())
+  email String @unique
+  name String
+  passwordHash String
+  role String @default("student")
+  phone String?
+  verifiedAt DateTime?
+  deletedAt DateTime?
+  preferences Json @default("{}")
+  demoScenario String?
+  createdAt DateTime @default(now())
+  sessions Session[]
+  tokens AuthToken[]
+  memberships Membership[]
+  addresses Address[]
+  orders Order[]
+  payments Payment[]
+  subscriptions Subscription[]
+  reviews Review[]
+  messages Message[]
+  tickets Ticket[]
+  notifications Notification[]
+  favorites Favorite[]
+  schedules RecurringSchedule[]
+  files StoredFile[]
+}
+model Session {
+  id String @id @default(uuid())
+  tokenHash String @unique
+  csrf String
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+model AuthToken {
+  id String @id @default(uuid())
+  hash String @unique
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  kind String
+  expiresAt DateTime
+  usedAt DateTime?
+}
+model RateLimit {
+  key String @id
+  n Int
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+model Campus {
+  id String @id
+  name String
+  city String
+  areas Area[]
+}
+model Area {
+  id String @id
+  name String
+  campusId String
+  campus Campus @relation(fields:[campusId],references:[id])
+  active Boolean @default(true)
+  companies CompanyArea[]
+  locatedCompanies Company[] @relation("CompanyPrimaryArea")
+  addresses Address[]
+}
+model Company {
+  id String @id @default(uuid())
+  slug String @unique
+  name String
+  description String
+  status String @default("pending")
+  registrationRef String
+  verifiedAt DateTime?
+  verificationNote String?
+  photo String?
+  coverPhoto String?
+  accent String @default("#123D32")
+  location String
+  primaryAreaId String?
+  primaryArea Area? @relation("CompanyPrimaryArea",fields:[primaryAreaId],references:[id],onDelete:SetNull)
+  turnaroundHours Int @default(48)
+  pickup Boolean @default(true)
+  deliveryFee Int @default(0)
+  minimum Int @default(2000)
+  capacity Int @default(12)
+  instantBooking Boolean @default(true)
+  published Boolean @default(false)
+  demo Boolean @default(false)
+  settlementDestination String?
+  paystackSubaccount String?
+  paymentAccountApproved Boolean @default(false)
+  createdAt DateTime @default(now())
+  memberships Membership[]
+  areas CompanyArea[]
+  branches Branch[]
+  services Service[]
+  hours OperatingHour[]
+  closures Closure[]
+  slots Slot[]
+  orders Order[]
+  subscriptions Subscription[]
+  campaigns Campaign[]
+  reviews Review[]
+  settlements Settlement[]
+  favorites Favorite[]
+  schedules RecurringSchedule[]
+  files StoredFile[]
+  @@index([primaryAreaId])
+}
+model Membership {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  role String
+  permissions String[] @default([])
+  @@unique([userId,companyId])
+}
+model CompanyArea {
+  companyId String
+  areaId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  area Area @relation(fields:[areaId],references:[id])
+  @@id([companyId,areaId])
+}
+model Branch {
+  id String @id @default(uuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  name String
+  address String
+}
+model OperatingHour {
+  id String @id @default(uuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  day Int
+  open String
+  close String
+  @@unique([companyId,day])
+}
+model Closure {
+  id String @id @default(uuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  date DateTime
+  reason String
+  @@unique([companyId,date])
+}
+model Service {
+  id String @id @default(uuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  name String
+  category String
+  description String
+  unit String
+  price Int
+  active Boolean @default(true)
+  estimated Boolean @default(false)
+  versions PriceVersion[]
+  items OrderItem[]
+  @@index([companyId,active])
+}
+model PriceVersion {
+  id String @id @default(uuid())
+  serviceId String
+  service Service @relation(fields:[serviceId],references:[id])
+  price Int
+  createdAt DateTime @default(now())
+}
+model Slot {
+  id String @id @default(uuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  startsAt DateTime
+  endsAt DateTime
+  capacity Int
+  reserved Int @default(0)
+  orders Order[]
+  @@unique([companyId,startsAt])
+}
+model Address {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  label String
+  detail String
+  areaId String
+  area Area @relation(fields:[areaId],references:[id])
+  instructions String?
+}
+model Favorite {
+  userId String
+  companyId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  @@id([userId,companyId])
+}
+model Order {
+  id String @id @default(uuid())
+  reference String @unique
+  idempotencyKey String @unique
+  userId String
+  user User @relation(fields:[userId],references:[id])
+  companyId String
+  company Company @relation(fields:[companyId],references:[id])
+  slotId String?
+  slot Slot? @relation(fields:[slotId],references:[id])
+  status String @default("requested")
+  paymentStatus String @default("unpaid")
+  method String
+  address Json
+  careNotes String?
+  subtotal Int
+  convenienceFee Int
+  deliveryFee Int @default(0)
+  discount Int @default(0)
+  discountFunding String?
+  tax Int @default(0)
+  total Int
+  commission Int
+  companyShare Int
+  feeSnapshot Json
+  reservedUntil DateTime?
+  reservationReleased Boolean @default(false)
+  deliveryCodeHash String?
+  quoteAdjustment Json?
+  quoteApprovedAt DateTime?
+  completedAt DateTime?
+  source String @default("interactive")
+  runId String
+  createdAt DateTime @default(now())
+  items OrderItem[]
+  events OrderEvent[]
+  payments Payment[]
+  refunds Refund[]
+  review Review?
+  messages Message[]
+  tickets Ticket[]
+  @@index([userId,createdAt])
+  @@index([companyId,status])
+  @@index([slotId,paymentStatus])
+}
+model OrderItem {
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation(fields:[orderId],references:[id],onDelete:Cascade)
+  serviceId String
+  service Service @relation(fields:[serviceId],references:[id])
+  name String
+  unit String
+  unitPrice Int
+  quantity Int
+  lineTotal Int
+  estimated Boolean @default(false)
+}
+model OrderEvent {
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation(fields:[orderId],references:[id],onDelete:Cascade)
+  status String
+  actorId String
+  reason String?
+  createdAt DateTime @default(now())
+  @@index([orderId,createdAt])
+}
+model Payment {
+  id String @id @default(uuid())
+  reference String @unique
+  idempotencyKey String @unique
+  userId String
+  user User @relation(fields:[userId],references:[id])
+  orderId String?
+  order Order? @relation(fields:[orderId],references:[id])
+  kind String
+  targetId String?
+  amount Int
+  currency String @default("GHS")
+  status String @default("pending")
+  mode String
+  source String
+  runId String
+  providerId String? @unique
+  providerFees Int @default(0)
+  checkoutUrl String?
+  method String @default("card")
+  authorization Json?
+  failureReason String?
+  verifiedAt DateTime?
+  reviewedAt DateTime?
+  reviewedBy String?
+  reviewNote String?
+  createdAt DateTime @default(now())
+  refunds Refund[]
+  journals Journal[]
+  subscriptions Subscription[]
+  campaigns Campaign[]
+  @@index([status,createdAt])
+  @@index([runId,source])
+}
+model WebhookEvent {
+  id String @id @default(uuid())
+  key String @unique
+  adapter String
+  payload Json
+  status String @default("received")
+  attempts Int @default(0)
+  error String?
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+}
+model Refund {
+  id String @id @default(uuid())
+  reference String @unique
+  paymentId String
+  payment Payment @relation(fields:[paymentId],references:[id])
+  orderId String
+  order Order @relation(fields:[orderId],references:[id])
+  amount Int
+  laundryAmount Int
+  commissionReversal Int
+  companyReversal Int
+  convenienceReversal Int
+  deliveryReversal Int @default(0)
+  status String @default("pending")
+  providerId String? @unique
+  failureReason String?
+  lastCheckedAt DateTime?
+  reason String
+  actorId String
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  @@index([status,lastCheckedAt])
+}
+model LedgerAccount {
+  code String @id
+  name String
+  type String
+  lines LedgerLine[]
+}
+model Journal {
+  id String @id @default(uuid())
+  key String @unique
+  paymentId String?
+  payment Payment? @relation(fields:[paymentId],references:[id])
+  description String
+  source String
+  runId String
+  companyId String?
+  createdAt DateTime @default(now())
+  lines LedgerLine[]
+  @@index([runId,source,createdAt])
+}
+model LedgerLine {
+  id String @id @default(uuid())
+  journalId String
+  journal Journal @relation(fields:[journalId],references:[id])
+  accountCode String
+  account LedgerAccount @relation(fields:[accountCode],references:[code])
+  debit Int @default(0)
+  credit Int @default(0)
+  @@index([accountCode,journalId])
+}
+model Plan {
+  id String @id
+  name String
+  kind String
+  price Int
+  periodDays Int @default(30)
+  staffSeats Int @default(1)
+  branches Int @default(1)
+  convenienceWaiver Boolean @default(false)
+  features String[]
+  active Boolean @default(true)
+  subscriptions Subscription[]
+}
+model Subscription {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields:[userId],references:[id])
+  companyId String?
+  company Company? @relation(fields:[companyId],references:[id])
+  planId String
+  plan Plan @relation(fields:[planId],references:[id])
+  paymentId String?
+  payment Payment? @relation(fields:[paymentId],references:[id])
+  status String
+  startsAt DateTime
+  endsAt DateTime
+  cancelAtEnd Boolean @default(false)
+  renewalMethod String @default("manual")
+  graceUntil DateTime?
+  priceSnapshot Int
+  recognized Int @default(0)
+  periodDaysSnapshot Int @default(30)
+  reviewedAt DateTime?
+  reviewedBy String?
+  reviewNote String?
+  createdAt DateTime @default(now())
+  @@index([userId,status,endsAt])
+  @@index([companyId,status])
+}
+model Campaign {
+  id String @id @default(uuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id])
+  paymentId String
+  payment Payment @relation(fields:[paymentId],references:[id])
+  status String
+  startsAt DateTime
+  endsAt DateTime
+  amount Int
+  recognized Int @default(0)
+}
+model Settlement {
+  id String @id @default(uuid())
+  reference String @unique
+  companyId String
+  company Company @relation(fields:[companyId],references:[id])
+  amount Int
+  status String
+  mode String
+  reason String?
+  createdAt DateTime @default(now())
+}
+model Review {
+  id String @id @default(uuid())
+  orderId String @unique
+  order Order @relation(fields:[orderId],references:[id])
+  companyId String
+  company Company @relation(fields:[companyId],references:[id])
+  userId String
+  user User @relation(fields:[userId],references:[id])
+  rating Int
+  text String
+  response String?
+  status String @default("published")
+  createdAt DateTime @default(now())
+}
+model Message {
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation(fields:[orderId],references:[id])
+  userId String
+  user User @relation(fields:[userId],references:[id])
+  body String
+  createdAt DateTime @default(now())
+}
+model Ticket {
+  id String @id @default(uuid())
+  reference String @unique
+  userId String?
+  user User? @relation(fields:[userId],references:[id])
+  orderId String?
+  order Order? @relation(fields:[orderId],references:[id])
+  name String
+  subject String
+  category String
+  body String
+  status String @default("open")
+  assignedTo String?
+  resolution String?
+  createdAt DateTime @default(now())
+  events TicketEvent[]
+}
+model TicketEvent {
+  id String @id @default(uuid())
+  ticketId String
+  ticket Ticket @relation(fields:[ticketId],references:[id],onDelete:Cascade)
+  actorId String
+  body String
+  createdAt DateTime @default(now())
+}
+model Notification {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  title String
+  body String
+  href String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+}
+model CapturedEmail {
+  id String @id @default(uuid())
+  to String
+  subject String
+  body String
+  actionUrl String?
+  delivered Boolean @default(false)
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+}
+model RecurringSchedule {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  companyId String
+  company Company @relation(fields:[companyId],references:[id])
+  day Int
+  frequency String
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+}
+model StoredFile {
+  id String @id @default(uuid())
+  ownerId String
+  owner User @relation(fields:[ownerId],references:[id])
+  companyId String?
+  company Company? @relation(fields:[companyId],references:[id])
+  name String
+  mime String
+  size Int
+  key String @unique
+  status String @default("quarantined")
+  createdAt DateTime @default(now())
+}
+model ContentPage {
+  slug String @id
+  title String
+  body String
+  updatedAt DateTime @updatedAt
+}
+model Setting {
+  key String @id
+  value Json
+  updatedAt DateTime @updatedAt
+}
+model AuditEvent {
+  id String @id @default(uuid())
+  actorId String
+  action String
+  targetId String
+  reason String?
+  metadata Json @default("{}")
+  createdAt DateTime @default(now())
+  @@index([targetId,createdAt])
+}
+model Job {
+  id String @id @default(uuid())
+  key String @unique
+  kind String
+  payload Json
+  dueAt DateTime
+  status String @default("pending")
+  attempts Int @default(0)
+  lastError String?
+  createdAt DateTime @default(now())
+  @@index([status,dueAt])
+}
